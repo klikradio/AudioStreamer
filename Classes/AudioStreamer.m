@@ -210,6 +210,7 @@ void ASReadStreamCallBack
 @synthesize state;
 @synthesize bitRate;
 @dynamic progress;
+@synthesize urlArray;
 
 //
 // initWithURL
@@ -221,7 +222,22 @@ void ASReadStreamCallBack
 	self = [super init];
 	if (self != nil)
 	{
-		url = [aURL retain];
+		self.urlArray = [NSArray arrayWithObject:aURL];
+	}
+	return self;
+}
+
+//
+// initWithURLArray
+//
+// Init method for the object.
+//
+- (id)initWithURLArray:(NSArray *)urls
+{
+	self = [super init];
+	if (self != nil)
+	{
+		self.urlArray = urls; //retains
 	}
 	return self;
 }
@@ -235,7 +251,7 @@ void ASReadStreamCallBack
 {
 	[self stop];
 	[notificationCenter release];
-	[url release];
+	[urlArray release];
 	[super dealloc];
 }
 
@@ -419,6 +435,41 @@ void ASReadStreamCallBack
 }
 
 //
+// hasMoreURLs:
+//
+// returns true if there are more urls in the queue
+//			 
+-(BOOL) hasMoreURLs {
+	return urlArray && [urlArray count] > 0;
+}
+
+//
+// popURL:
+//
+// returns the next url in the queue and removes it from the queue
+//	
+-(NSURL *) popURL {
+	if( ![self hasMoreURLs] ) {return nil;}
+	NSURL *url = [urlArray objectAtIndex:0];
+	if( [urlArray count] > 1) {
+		urlArray = [urlArray subarrayWithRange:NSMakeRange(1, [urlArray count] - 1)];
+	} else {
+		urlArray = nil;
+	}
+	return url;
+}
+
+//
+// nextURL:
+//
+// returns the next url in the queue
+//	
+-(NSURL *) nextURL {
+	if( ![self hasMoreURLs] ) {return nil;}
+	return [urlArray objectAtIndex:0];
+}
+
+//
 // setState:
 //
 // Sets the state and sends a notification that the state has changed.
@@ -528,172 +579,199 @@ void ASReadStreamCallBack
 {
 	@synchronized(self)
 	{
-		NSAssert(stream == nil && audioFileStream == nil,
-			@"audioFileStream already initialized");
+		NSAssert(stream == nil && audioFileStream == nil, @"audioFileStream already initialized");
 		
-		//
-		// Attempt to guess the file type from the URL. Reading the MIME type
-		// from the CFReadStream would be a better approach since lots of
-		// URL's don't have the right extension.
-		//
-		// If you have a fixed file-type, you may want to hardcode this.
-		//
-		AudioFileTypeID fileTypeHint = kAudioFileMP3Type;
-		NSString *fileExtension = [[url path] pathExtension];
-		if ([fileExtension isEqual:@"mp3"])
-		{
-			fileTypeHint = kAudioFileMP3Type;
-		}
-		else if ([fileExtension isEqual:@"wav"])
-		{
-			fileTypeHint = kAudioFileWAVEType;
-		}
-		else if ([fileExtension isEqual:@"aifc"])
-		{
-			fileTypeHint = kAudioFileAIFCType;
-		}
-		else if ([fileExtension isEqual:@"aiff"])
-		{
-			fileTypeHint = kAudioFileAIFFType;
-		}
-		else if ([fileExtension isEqual:@"m4a"])
-		{
-			fileTypeHint = kAudioFileM4AType;
-		}
-		else if ([fileExtension isEqual:@"mp4"])
-		{
-			fileTypeHint = kAudioFileMPEG4Type;
-		}
-		else if ([fileExtension isEqual:@"caf"])
-		{
-			fileTypeHint = kAudioFileCAFType;
-		}
-		else if ([fileExtension isEqual:@"aac"])
-		{
-			fileTypeHint = kAudioFileAAC_ADTSType;
-		}
-
-		// create an audio file stream parser
-		err = AudioFileStreamOpen(self, MyPropertyListenerProc, MyPacketsProc, 
-								fileTypeHint, &audioFileStream);
-		if (err)
-		{
-			[self failWithErrorCode:AS_FILE_STREAM_OPEN_FAILED];
+		if( ![self openAudioFileStream] ) {
 			return NO;
 		}
-		
-		//
-		// Create the GET request
-		//
-		CFHTTPMessageRef message= CFHTTPMessageCreateRequest(NULL, (CFStringRef)@"GET", (CFURLRef)url, kCFHTTPVersion1_1);
-		stream = CFReadStreamCreateForHTTPRequest(NULL, message);
-		CFRelease(message);
-		
-		//
-		// Enable stream redirection
-		//
-		if (CFReadStreamSetProperty(
-			stream,
-			kCFStreamPropertyHTTPShouldAutoredirect,
-			kCFBooleanTrue) == false)
-		{
-#ifdef TARGET_OS_IPHONE
-			UIAlertView *alert =
-				[[UIAlertView alloc]
-					initWithTitle:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
-					message:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)
-					delegate:self
-					cancelButtonTitle:@"OK"
-					otherButtonTitles: nil];
-			[alert
-				performSelector:@selector(show)
-				onThread:[NSThread mainThread]
-				withObject:nil
-				waitUntilDone:YES];
-			[alert release];
-#else
-		NSAlert *alert =
-			[NSAlert
-				alertWithMessageText:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
-				defaultButton:NSLocalizedString(@"OK", @"")
-				alternateButton:nil
-				otherButton:nil
-				informativeTextWithFormat:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)];
-		[alert
-			performSelector:@selector(runModal)
-			onThread:[NSThread mainThread]
-			withObject:nil
-			waitUntilDone:NO];
-#endif
+		if( ![self openReadStream] ) {
 			return NO;
 		}
-		
-		//
-		// Handle SSL connections
-		//
-		if( [[url absoluteString] rangeOfString:@"https"].location != NSNotFound )
-		{
-			NSDictionary *sslSettings =
-				[NSDictionary dictionaryWithObjectsAndKeys:
-					(NSString *)kCFStreamSocketSecurityLevelNegotiatedSSL, kCFStreamSSLLevel,
-					[NSNumber numberWithBool:YES], kCFStreamSSLAllowsExpiredCertificates,
-					[NSNumber numberWithBool:YES], kCFStreamSSLAllowsExpiredRoots,
-					[NSNumber numberWithBool:YES], kCFStreamSSLAllowsAnyRoot,
-					[NSNumber numberWithBool:NO], kCFStreamSSLValidatesCertificateChain,
-					[NSNull null], kCFStreamSSLPeerName,
-				nil];
-
-			CFReadStreamSetProperty(stream, kCFStreamPropertySSLSettings, sslSettings);
-		}
-		
-		//
-		// Open the stream
-		//
-		if (!CFReadStreamOpen(stream))
-		{
-			CFRelease(stream);
-#ifdef TARGET_OS_IPHONE
-			UIAlertView *alert =
-				[[UIAlertView alloc]
-					initWithTitle:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
-					message:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)
-					delegate:self
-					cancelButtonTitle:@"OK"
-					otherButtonTitles: nil];
-			[alert
-				performSelector:@selector(show)
-				onThread:[NSThread mainThread]
-				withObject:nil
-				waitUntilDone:YES];
-			[alert release];
-#else
-		NSAlert *alert =
-			[NSAlert
-				alertWithMessageText:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
-				defaultButton:NSLocalizedString(@"OK", @"")
-				alternateButton:nil
-				otherButton:nil
-				informativeTextWithFormat:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)];
-		[alert
-			performSelector:@selector(runModal)
-			onThread:[NSThread mainThread]
-			withObject:nil
-			waitUntilDone:NO];
-#endif
-			return NO;
-		}
-		
-		//
-		// Set our callback function to receive the data
-		//
-		CFStreamClientContext context = {0, self, NULL, NULL, NULL};
-		CFReadStreamSetClient(
-			stream,
-			kCFStreamEventHasBytesAvailable | kCFStreamEventErrorOccurred | kCFStreamEventEndEncountered,
-			ASReadStreamCallBack,
-			&context);
-		CFReadStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
 	}
+	
+	return YES;
+}
+
+//
+// openAudioFileStream
+//
+// inits the audioFileStream and guesses the encoding type from the nextURL
+//
+-(BOOL) openAudioFileStream {
+	
+	//
+	// Attempt to guess the file type from the URL. Reading the MIME type
+	// from the CFReadStream would be a better approach since lots of
+	// URL's don't have the right extension.
+	//
+	// If you have a fixed file-type, you may want to hardcode this.
+	//
+	AudioFileTypeID fileTypeHint = kAudioFileMP3Type;
+	NSString *fileExtension = [[[self nextURL] path] pathExtension];
+	if ([fileExtension isEqual:@"mp3"])
+	{
+		fileTypeHint = kAudioFileMP3Type;
+	}
+	else if ([fileExtension isEqual:@"wav"])
+	{
+		fileTypeHint = kAudioFileWAVEType;
+	}
+	else if ([fileExtension isEqual:@"aifc"])
+	{
+		fileTypeHint = kAudioFileAIFCType;
+	}
+	else if ([fileExtension isEqual:@"aiff"])
+	{
+		fileTypeHint = kAudioFileAIFFType;
+	}
+	else if ([fileExtension isEqual:@"m4a"])
+	{
+		fileTypeHint = kAudioFileM4AType;
+	}
+	else if ([fileExtension isEqual:@"mp4"])
+	{
+		fileTypeHint = kAudioFileMPEG4Type;
+	}
+	else if ([fileExtension isEqual:@"caf"])
+	{
+		fileTypeHint = kAudioFileCAFType;
+	}
+	else if ([fileExtension isEqual:@"aac"])
+	{
+		fileTypeHint = kAudioFileAAC_ADTSType;
+	}
+	
+	// create an audio file stream parser
+	err = AudioFileStreamOpen(self, MyPropertyListenerProc, MyPacketsProc, 
+							  fileTypeHint, &audioFileStream);
+	if (err)
+	{
+		[self failWithErrorCode:AS_FILE_STREAM_OPEN_FAILED];
+		return NO;
+	}
+	
+	return YES;
+}
+
+//
+// openReadStream
+//
+// sets up the http stream using the next URL in the queue
+//
+-(BOOL) openReadStream {
+	NSURL *url = [self popURL];
+	NSLog(@"openReadStream %@", url);
+	//
+	// Create the GET request
+	//
+	CFHTTPMessageRef message= CFHTTPMessageCreateRequest(NULL, (CFStringRef)@"GET", (CFURLRef)url, kCFHTTPVersion1_1);
+	stream = CFReadStreamCreateForHTTPRequest(NULL, message);
+	CFRelease(message);
+	
+	//
+	// Enable stream redirection
+	//
+	if (CFReadStreamSetProperty(
+								stream,
+								kCFStreamPropertyHTTPShouldAutoredirect,
+								kCFBooleanTrue) == false)
+	{
+#ifdef TARGET_OS_IPHONE
+		UIAlertView *alert =
+		[[UIAlertView alloc]
+		 initWithTitle:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
+		 message:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)
+		 delegate:self
+		 cancelButtonTitle:@"OK"
+		 otherButtonTitles: nil];
+		[alert
+		 performSelector:@selector(show)
+		 onThread:[NSThread mainThread]
+		 withObject:nil
+		 waitUntilDone:YES];
+		[alert release];
+#else
+		NSAlert *alert =
+		[NSAlert
+		 alertWithMessageText:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
+		 defaultButton:NSLocalizedString(@"OK", @"")
+		 alternateButton:nil
+		 otherButton:nil
+		 informativeTextWithFormat:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)];
+		[alert
+		 performSelector:@selector(runModal)
+		 onThread:[NSThread mainThread]
+		 withObject:nil
+		 waitUntilDone:NO];
+#endif
+		return NO;
+	}
+	
+	//
+	// Handle SSL connections
+	//
+	if( [[url absoluteString] rangeOfString:@"https"].location != NSNotFound )
+	{
+		NSDictionary *sslSettings =
+		[NSDictionary dictionaryWithObjectsAndKeys:
+		 (NSString *)kCFStreamSocketSecurityLevelNegotiatedSSL, kCFStreamSSLLevel,
+		 [NSNumber numberWithBool:YES], kCFStreamSSLAllowsExpiredCertificates,
+		 [NSNumber numberWithBool:YES], kCFStreamSSLAllowsExpiredRoots,
+		 [NSNumber numberWithBool:YES], kCFStreamSSLAllowsAnyRoot,
+		 [NSNumber numberWithBool:NO], kCFStreamSSLValidatesCertificateChain,
+		 [NSNull null], kCFStreamSSLPeerName,
+		 nil];
+		
+		CFReadStreamSetProperty(stream, kCFStreamPropertySSLSettings, sslSettings);
+	}
+	
+	//
+	// Open the stream
+	//
+	if (!CFReadStreamOpen(stream))
+	{
+		CFRelease(stream);
+#ifdef TARGET_OS_IPHONE
+		UIAlertView *alert =
+		[[UIAlertView alloc]
+		 initWithTitle:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
+		 message:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)
+		 delegate:self
+		 cancelButtonTitle:@"OK"
+		 otherButtonTitles: nil];
+		[alert
+		 performSelector:@selector(show)
+		 onThread:[NSThread mainThread]
+		 withObject:nil
+		 waitUntilDone:YES];
+		[alert release];
+#else
+		NSAlert *alert =
+		[NSAlert
+		 alertWithMessageText:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
+		 defaultButton:NSLocalizedString(@"OK", @"")
+		 alternateButton:nil
+		 otherButton:nil
+		 informativeTextWithFormat:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)];
+		[alert
+		 performSelector:@selector(runModal)
+		 onThread:[NSThread mainThread]
+		 withObject:nil
+		 waitUntilDone:NO];
+#endif
+		return NO;
+	}
+	
+	//
+	// Set our callback function to receive the data
+	//
+	CFStreamClientContext context = {0, self, NULL, NULL, NULL};
+	CFReadStreamSetClient(
+						  stream,
+						  kCFStreamEventHasBytesAvailable | kCFStreamEventErrorOccurred | kCFStreamEventEndEncountered,
+						  ASReadStreamCallBack,
+						  &context);
+	CFReadStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
 	
 	return YES;
 }
@@ -1034,6 +1112,7 @@ cleanup:
 	}
 	else if (eventType == kCFStreamEventEndEncountered)
 	{
+		NSLog(@"kCFStreamEventEndEncountered");
 		@synchronized(self)
 		{
 			if ([self isFinishing])
@@ -1055,6 +1134,7 @@ cleanup:
 		{
 			if (state == AS_WAITING_FOR_DATA)
 			{
+				NSLog(@"AS_WAITING_FOR_DATA");
 				[self failWithErrorCode:AS_AUDIO_DATA_NOT_FOUND];
 			}
 			
@@ -1067,27 +1147,50 @@ cleanup:
 			{
 				if (audioQueue)
 				{
-					//
-					// Set the progress at the end of the stream
-					//
-					err = AudioQueueFlush(audioQueue);
-					if (err)
-					{
-						[self failWithErrorCode:AS_AUDIO_QUEUE_FLUSH_FAILED];
-						return;
-					}
+					
+					if([self hasMoreURLs]) { //CKH
+						NSLog(@"closing completed stream");
+						
+						//
+						// Cleanup the read stream if it is still open
+						//
+						if (stream)
+						{
+							CFReadStreamClose(stream);
+							CFRelease(stream);
+							stream = nil;
+						}
+						
+						NSLog(@"opening new stream");
+						if( ![self openReadStream]) {
+							NSLog(@"ERROR re-opening");
+						}
+					} else {
+						
+						NSLog(@"flushing");
+						//
+						// Set the progress at the end of the stream
+						//
+						err = AudioQueueFlush(audioQueue);
+						if (err)
+						{
+							[self failWithErrorCode:AS_AUDIO_QUEUE_FLUSH_FAILED];
+							return;
+						}
 
-					self.state = AS_STOPPING;
-					stopReason = AS_STOPPING_EOF;
-					err = AudioQueueStop(audioQueue, false);
-					if (err)
-					{
-						[self failWithErrorCode:AS_AUDIO_QUEUE_FLUSH_FAILED];
-						return;
+						self.state = AS_STOPPING;
+						stopReason = AS_STOPPING_EOF;
+						err = AudioQueueStop(audioQueue, false);
+						if (err)
+						{
+							[self failWithErrorCode:AS_AUDIO_QUEUE_FLUSH_FAILED];
+							return;
+						}
 					}
 				}
 				else
 				{
+					NSLog(@"stopping");
 					self.state = AS_STOPPED;
 					stopReason = AS_STOPPING_EOF;
 				}
@@ -1453,7 +1556,7 @@ cleanup:
 				// copy data to the audio queue buffer
 				AudioQueueBufferRef fillBuf = audioQueueBuffer[fillBufferIndex];
 				memcpy((char*)fillBuf->mAudioData + bytesFilled, (const char*)inInputData + packetOffset, packetSize);
-
+				
 				// fill out packet description
 				packetDescs[packetsFilled] = inPacketDescriptions[i];
 				packetDescs[packetsFilled].mStartOffset = bytesFilled;

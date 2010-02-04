@@ -98,7 +98,7 @@ extern NSString * const ASStatusChangedNotification;
 
 @interface AudioStreamer : NSObject
 {
-	NSURL *url;
+	NSArray *urlArray;
 
 	//
 	// Special threading consideration:
@@ -142,8 +142,17 @@ extern NSString * const ASStatusChangedNotification;
 @property (readonly) AudioStreamerState state;
 @property (readonly) double progress;
 @property (readwrite) UInt32 bitRate;
+@property (nonatomic, retain) NSArray *urlArray;
+
+-(BOOL) openAudioFileStream;
+-(BOOL) openReadStream;
+
+-(BOOL) hasMoreURLs;
+-(NSURL *) popURL;
+-(NSURL *) nextURL;
 
 - (id)initWithURL:(NSURL *)aURL;
+- (id)initWithURLArray:(NSArray *)aURL;
 - (void)start;
 - (void)stop;
 - (void)pause;

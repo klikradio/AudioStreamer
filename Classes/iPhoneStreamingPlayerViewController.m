@@ -85,17 +85,24 @@
 
 	[self destroyStreamer];
 	
-	NSString *escapedValue =
-		[(NSString *)CFURLCreateStringByAddingPercentEscapes(
-			nil,
-			(CFStringRef)downloadSourceField.text,
-			NULL,
-			NULL,
-			kCFStringEncodingUTF8)
-		autorelease];
+	NSMutableArray *urls = [NSMutableArray arrayWithArray:[downloadSourceField.text componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
+	
+	for(int i=0; i < [urls count]; ++i ) {
+		[urls replaceObjectAtIndex:i withObject:
+			[NSURL URLWithString:
+				(NSString *)CFURLCreateStringByAddingPercentEscapes(
+					nil,
+					(CFStringRef)[urls objectAtIndex:i],
+					NULL,
+					NULL,
+					kCFStringEncodingUTF8)
+			 ]
+		 ];
+	}
+	
+	NSLog(@"%@", [urls description]);
 
-	NSURL *url = [NSURL URLWithString:escapedValue];
-	streamer = [[AudioStreamer alloc] initWithURL:url];
+	streamer = [[AudioStreamer alloc] initWithURLArray:urls];
 	
 	progressUpdateTimer =
 		[NSTimer
