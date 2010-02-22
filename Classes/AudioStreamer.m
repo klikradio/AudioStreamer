@@ -222,6 +222,7 @@ void ASReadStreamCallBack
 	self = [super init];
 	if (self != nil)
 	{
+		playingIndex = 0;
 		self.urlArray = [NSArray arrayWithObject:aURL];
 	}
 	return self;
@@ -230,13 +231,14 @@ void ASReadStreamCallBack
 //
 // initWithURLArray
 //
-// Init method for the object.
+// Init method for the object. This can be an array of NSStrings or NSURLs or URLables. To retrieve the object playing from this array use currentTrack()
 //
 - (id)initWithURLArray:(NSArray *)urls
 {
 	self = [super init];
 	if (self != nil)
 	{
+		playingIndex = 0;
 		self.urlArray = urls; //retains
 	}
 	return self;
@@ -440,23 +442,28 @@ void ASReadStreamCallBack
 // returns true if there are more urls in the queue
 //			 
 -(BOOL) hasMoreURLs {
-	return urlArray && [urlArray count] > 0;
+	return urlArray && [urlArray count] > playingIndex + 1;
 }
 
-//
-// popURL:
-//
-// returns the next url in the queue and removes it from the queue
-//	
--(NSURL *) popURL {
-	if( ![self hasMoreURLs] ) {return nil;}
-	NSURL *url = [urlArray objectAtIndex:0];
-	if( [urlArray count] > 1) {
-		urlArray = [urlArray subarrayWithRange:NSMakeRange(1, [urlArray count] - 1)];
+//creates a NSURL from an object
+//return the object if it is a NSURL
+//returns (NSURL *) url() if the object responds to url
+//converts the string into a NSURL otherwise
+-(NSURL *) objectAsURL:(NSObject *) object {
+	if ([object isKindOfClass:[NSURL class]]) {
+		return (NSURL *) object;
+	} else if( [[object class] instancesRespondToSelector:@selector(url)] ) {
+		return (NSURL *) [object performSelector:@selector(url)];
 	} else {
-		urlArray = nil;
+		return [NSURL URLWithString: [object description]];
+		//(NSString *)CFURLCreateStringByAddingPercentEscapes(nil, (CFStringRef)url, NULL, NULL, kCFStringEncodingUTF8)
 	}
-	return url;
+}
+
+//returns the object originally passed into the init array
+-(NSObject *) currentTrack {
+	if( !urlArray || playingIndex < 0 || playingIndex >= [urlArray count] ) {return nil;}
+	return [urlArray objectAtIndex:playingIndex];
 }
 
 //
@@ -464,9 +471,11 @@ void ASReadStreamCallBack
 //
 // returns the next url in the queue
 //	
--(NSURL *) nextURL {
-	if( ![self hasMoreURLs] ) {return nil;}
-	return [urlArray objectAtIndex:0];
+-(NSURL *) currentURL {
+	//NSLog(@"current URL %d", playingIndex);
+	if( !urlArray || playingIndex < 0 || playingIndex >= [urlArray count] ) {return nil;}
+	//NSLog(@"current URL has more %d", playingIndex);
+	return [self objectAsURL:[self currentTrack]];
 }
 
 //
@@ -569,6 +578,66 @@ void ASReadStreamCallBack
 	return NO;
 }
 
+//- (void) incrementPlayingIndex {
+//	playingIndex++;
+//}
+
+- (int) playingIndex {
+	return playingIndex;
+}
+
+// sleep for this amount when playing next track or previous track
+#define TRACK_CHANGE_DELAY 0.4
+
+//can be called while playing or not
+- (BOOL) incrementPlayingIndex {
+	NSLog(@"incrementPlayingIndex");
+	BOOL isPlaying = [self isPlaying];
+	if( isPlaying ) {
+		NSLog(@"stop");
+		[self stop];
+	}
+	playingIndex = MIN( playingIndex+1, [urlArray count] - 1);
+	if( isPlaying ) {
+		if( playingIndex >= [urlArray count] ) {return NO;}
+		sleep(TRACK_CHANGE_DELAY);
+		if(  playingIndex >= [urlArray count] ) {return NO;}
+		NSLog(@"start");
+		[self start];
+	}
+	return YES;
+}
+
+//can be called while playing or not
+- (BOOL) decrementPlayingIndex {
+	NSLog(@"decrementPlayingIndex");
+	BOOL isPlaying = [self isPlaying];
+	if( isPlaying ) {
+		NSLog(@"stop");
+		[self stop];
+	}
+	playingIndex = MAX(playingIndex-1, 0);
+	if( isPlaying ) {
+		if( playingIndex >= [urlArray count] ) {return NO;}
+		sleep(TRACK_CHANGE_DELAY);
+		if( playingIndex >= [urlArray count] ) {return NO;}
+		NSLog(@"start");
+		[self start];
+	}
+	return YES;
+}
+
+
+- (BOOL) playNextStream {
+	NSLog(@"playNextStream");
+	if( [self isPlaying] && ![self hasMoreURLs] ) { return NO; }
+	NSLog(@"playNextStream hasMore");
+	if ( [self isPlaying] ) {
+		playingIndex++;
+	}
+	return [self openReadStream];
+}
+
 //
 // openFileStream
 //
@@ -584,7 +653,7 @@ void ASReadStreamCallBack
 		if( ![self openAudioFileStream] ) {
 			return NO;
 		}
-		if( ![self openReadStream] ) {
+		if( ![self playNextStream] ) {
 			return NO;
 		}
 	}
@@ -598,7 +667,7 @@ void ASReadStreamCallBack
 // inits the audioFileStream and guesses the encoding type from the nextURL
 //
 -(BOOL) openAudioFileStream {
-	
+	NSLog(@"openAudioFileStream");
 	//
 	// Attempt to guess the file type from the URL. Reading the MIME type
 	// from the CFReadStream would be a better approach since lots of
@@ -607,7 +676,7 @@ void ASReadStreamCallBack
 	// If you have a fixed file-type, you may want to hardcode this.
 	//
 	AudioFileTypeID fileTypeHint = kAudioFileMP3Type;
-	NSString *fileExtension = [[[self nextURL] path] pathExtension];
+	NSString *fileExtension = [[[self currentURL] path] pathExtension];
 	if ([fileExtension isEqual:@"mp3"])
 	{
 		fileTypeHint = kAudioFileMP3Type;
@@ -650,6 +719,7 @@ void ASReadStreamCallBack
 		return NO;
 	}
 	
+	NSLog(@"openAudioFileStream YES");
 	return YES;
 }
 
@@ -659,7 +729,9 @@ void ASReadStreamCallBack
 // sets up the http stream using the next URL in the queue
 //
 -(BOOL) openReadStream {
-	NSURL *url = [self popURL];
+	NSLog(@"openReadStream start");
+	NSURL *url = [self currentURL];
+
 	NSLog(@"openReadStream %@", url);
 	//
 	// Create the GET request
@@ -1162,7 +1234,7 @@ cleanup:
 						}
 						
 						NSLog(@"opening new stream");
-						if( ![self openReadStream]) {
+						if( ![self playNextStream]) {
 							NSLog(@"ERROR re-opening");
 						}
 					} else {

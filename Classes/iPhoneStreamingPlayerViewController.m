@@ -17,6 +17,9 @@
 #import <QuartzCore/CoreAnimation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <CFNetwork/CFNetwork.h>
+#import "TitledURL.h"
+
+//#define USE_LOCAL_URLS //load local urls
 
 @implementation iPhoneStreamingPlayerViewController
 
@@ -85,20 +88,17 @@
 
 	[self destroyStreamer];
 	
-	NSMutableArray *urls = [NSMutableArray arrayWithArray:[downloadSourceField.text componentsSeparatedByCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]]];
+	NSMutableArray *urls = [[NSMutableArray alloc] initWithCapacity:2];
 	
-	for(int i=0; i < [urls count]; ++i ) {
-		[urls replaceObjectAtIndex:i withObject:
-			[NSURL URLWithString:
-				(NSString *)CFURLCreateStringByAddingPercentEscapes(
-					nil,
-					(CFStringRef)[urls objectAtIndex:i],
-					NULL,
-					NULL,
-					kCFStringEncodingUTF8)
-			 ]
-		 ];
-	}
+#ifdef USE_LOCAL_URLS
+	[urls addObject:[[TitledURL alloc] initWithTitle:@"Track 1 (local)" andURL:@"http://localhost:3000/examples/Track%2001.mp3"]];
+	[urls addObject:[[TitledURL alloc] initWithTitle:@"Track 2 (local)" andURL:@"http://localhost:3000/examples/Track%2002.mp3"]];
+#else
+	[urls addObject:[[TitledURL alloc] initWithTitle:@"Track 1" andURL:@"http://toonsy.net/2Mt1kob8/track/9704/Track%2001%20short2.mp3"]];
+	[urls addObject:[[TitledURL alloc] initWithTitle:@"Track 2" andURL:@"http://toonsy.net/2Mt1kob8/track/9705/Track%2002%20short.mp3"]];
+#endif
+	
+	[downloadSourceField setText: [urls componentsJoinedByString:@"\n"]];
 	
 	NSLog(@"%@", [urls description]);
 
@@ -134,6 +134,7 @@
 	[volumeView sizeToFit];
 	
 	[self setButtonImage:[UIImage imageNamed:@"playbutton.png"]];
+	[self createStreamer];
 }
 
 //
@@ -210,6 +211,25 @@
 	}
 }
 
+-(void) updatePlayingLabel {
+	//int playingIndex = [streamer playingIndex];
+	playingLabel.text = [NSString stringWithFormat:@"Playing: %@", [streamer currentTrack]];
+}
+
+- (IBAction)playNextPressed:(id)sender
+{
+	NSLog(@"playNextPressed");
+	[streamer incrementPlayingIndex];
+	[self updatePlayingLabel];
+}
+
+- (IBAction)playPreviousPressed:(id)sender
+{
+	NSLog(@"playPreviousPressed");
+	[streamer decrementPlayingIndex];
+	[self updatePlayingLabel];
+}
+
 //
 // playbackStateChanged:
 //
@@ -228,7 +248,7 @@
 	}
 	else if ([streamer isIdle])
 	{
-		[self destroyStreamer];
+		//[self destroyStreamer]; //ckh
 		[self setButtonImage:[UIImage imageNamed:@"playbutton.png"]];
 	}
 }
@@ -252,6 +272,7 @@
 	{
 		positionLabel.text = @"Time Played:";
 	}
+	[self updatePlayingLabel];
 }
 
 //

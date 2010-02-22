@@ -136,6 +136,8 @@ extern NSString * const ASStatusChangedNotification;
 	double seekTime;
 	double sampleRate;
 	double lastProgress;
+	
+	int playingIndex;
 }
 
 @property AudioStreamerErrorCode errorCode;
@@ -146,10 +148,17 @@ extern NSString * const ASStatusChangedNotification;
 
 -(BOOL) openAudioFileStream;
 -(BOOL) openReadStream;
+-(BOOL) playNextStream;
+//-(BOOL) playNext;
+-(BOOL) incrementPlayingIndex;
+-(BOOL) decrementPlayingIndex;
+-(int) playingIndex;
 
+
+-(NSURL *) objectAsURL:(NSObject *) object;
 -(BOOL) hasMoreURLs;
--(NSURL *) popURL;
--(NSURL *) nextURL;
+-(NSObject *) currentTrack;
+-(NSURL *) currentURL;
 
 - (id)initWithURL:(NSURL *)aURL;
 - (id)initWithURLArray:(NSArray *)aURL;

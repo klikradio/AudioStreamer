@@ -13,6 +13,9 @@
 		1DF5F4E00D08C38300B7A737 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1DF5F4DF0D08C38300B7A737 /* UIKit.framework */; };
 		288765A50DF7441C002DB57D /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 288765A40DF7441C002DB57D /* CoreGraphics.framework */; };
 		28D7ACF80DDB3853001CB0EB /* iPhoneStreamingPlayerViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 28D7ACF70DDB3853001CB0EB /* iPhoneStreamingPlayerViewController.m */; };
+		5FEBDA441131DB81002750C3 /* Track01.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5FEBDA421131DB81002750C3 /* Track01.mp3 */; };
+		5FEBDA451131DB81002750C3 /* Track02.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5FEBDA431131DB81002750C3 /* Track02.mp3 */; };
+		5FEBDADA1131F51D002750C3 /* TitledURL.m in Sources */ = {isa = PBXBuildFile; fileRef = 5FEBDAD91131F51D002750C3 /* TitledURL.m */; };
 		C9423DF10EF8AA6B003B785B /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9423DF00EF8AA6B003B785B /* CFNetwork.framework */; };
 		C9AB93E20FCF816F0047C0FA /* AudioToolbox.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9AB93E10FCF816F0047C0FA /* AudioToolbox.framework */; };
 		C9AB93F30FCF81790047C0FA /* MediaPlayer.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9AB93F20FCF81790047C0FA /* MediaPlayer.framework */; };
@@ -37,6 +40,11 @@
 		28D7ACF70DDB3853001CB0EB /* iPhoneStreamingPlayerViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = iPhoneStreamingPlayerViewController.m; sourceTree = "<group>"; };
 		29B97316FDCFA39411CA2CEA /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		32CA4F630368D1EE00C91783 /* iPhoneStreamingPlayer_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iPhoneStreamingPlayer_Prefix.pch; sourceTree = "<group>"; };
+		5FEBDA421131DB81002750C3 /* Track01.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = Track01.mp3; path = "Shared Resources/Track01.mp3"; sourceTree = "<group>"; };
+		5FEBDA431131DB81002750C3 /* Track02.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; name = Track02.mp3; path = "Shared Resources/Track02.mp3"; sourceTree = "<group>"; };
+		5FEBDAD51131F3EB002750C3 /* URLable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = URLable.h; sourceTree = "<group>"; };
+		5FEBDAD81131F51D002750C3 /* TitledURL.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TitledURL.h; sourceTree = "<group>"; };
+		5FEBDAD91131F51D002750C3 /* TitledURL.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TitledURL.m; sourceTree = "<group>"; };
 		C9423DF00EF8AA6B003B785B /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
 		C9AB93E10FCF816F0047C0FA /* AudioToolbox.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AudioToolbox.framework; path = System/Library/Frameworks/AudioToolbox.framework; sourceTree = SDKROOT; };
 		C9AB93F20FCF81790047C0FA /* MediaPlayer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MediaPlayer.framework; path = System/Library/Frameworks/MediaPlayer.framework; sourceTree = SDKROOT; };
@@ -79,6 +87,9 @@
 				1D3623250D0F684500981E51 /* iPhoneStreamingPlayerAppDelegate.m */,
 				28D7ACF60DDB3853001CB0EB /* iPhoneStreamingPlayerViewController.h */,
 				28D7ACF70DDB3853001CB0EB /* iPhoneStreamingPlayerViewController.m */,
+				5FEBDAD51131F3EB002750C3 /* URLable.h */,
+				5FEBDAD81131F51D002750C3 /* TitledURL.h */,
+				5FEBDAD91131F51D002750C3 /* TitledURL.m */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
@@ -116,6 +127,8 @@
 		29B97317FDCFA39411CA2CEA /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				5FEBDA421131DB81002750C3 /* Track01.mp3 */,
+				5FEBDA431131DB81002750C3 /* Track02.mp3 */,
 				C9E672FF0FE8C55B0033BF43 /* iPhoneStreamingPlayerViewController.xib */,
 				C9E673010FE8C55B0033BF43 /* MainWindow.xib */,
 				C9E673050FE8C5650033BF43 /* playbutton.png */,
@@ -188,6 +201,8 @@
 				C9E6730A0FE8C5650033BF43 /* stopbutton.png in Resources */,
 				C9E6730B0FE8C5650033BF43 /* loadingbutton.png in Resources */,
 				C9E6730C0FE8C5650033BF43 /* pausebutton.png in Resources */,
+				5FEBDA441131DB81002750C3 /* Track01.mp3 in Resources */,
+				5FEBDA451131DB81002750C3 /* Track02.mp3 in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -202,6 +217,7 @@
 				1D3623260D0F684500981E51 /* iPhoneStreamingPlayerAppDelegate.m in Sources */,
 				28D7ACF80DDB3853001CB0EB /* iPhoneStreamingPlayerViewController.m in Sources */,
 				C9C2D87A0EB6E09C00A3D071 /* AudioStreamer.m in Sources */,
+				5FEBDADA1131F51D002750C3 /* TitledURL.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

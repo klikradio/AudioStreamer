@@ -20,13 +20,18 @@
 {
 	IBOutlet UITextView *downloadSourceField;
 	IBOutlet UIButton *button;
+	IBOutlet UIButton *nextButton;
+	IBOutlet UIButton *previousButton;
 	IBOutlet UIView *volumeSlider;
 	IBOutlet UILabel *positionLabel;
+	IBOutlet UILabel *playingLabel;
 	AudioStreamer *streamer;
 	NSTimer *progressUpdateTimer;
 }
 
 - (IBAction)buttonPressed:(id)sender;
+- (IBAction)playNextPressed:(id)sender;
+- (IBAction)playPreviousPressed:(id)sender;
 - (void)spinButton;
 - (void)updateProgress:(NSTimer *)aNotification;
 
