@@ -1789,34 +1789,43 @@ cleanup:
 			}	// end if parsedHeaders
 #endif
 		}
-#ifdef SHOUTCAST_METADATA
         
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
-        if (![url isFileURL]) {
+#ifdef USE_PREBUFFER
+        if (![url isFileURL])
+        {
             NSData *data;
+#ifdef SHOUTCAST_METADATA
             if (lengthNoMetaData > 0)
             {
                 data = [[NSData alloc] initWithBytes:bytesNoMetaData length:lengthNoMetaData];
             }
             else
             {
+#endif
                 data = [[NSData alloc] initWithBytes:bytes length:length];
+#ifdef SHOUTCAST_METADATA
             }
+#endif
             [_bufferLock lock];
             [_buffers addObject:data];
             [_bufferLock unlock];
             [data release];
-           @synchronized(self) { 
-            if (nil == _bufferPushingThread) {
-                _bufferPushingThread = [[NSThread alloc] initWithTarget:self selector:@selector(pushingBufferThread:) object:nil];
-                [_bufferPushingThread setName:@"Push/Parse Buffer Thread"];
-                [_bufferPushingThread start];
+            @synchronized(self)
+            {
+                if (nil == _bufferPushingThread)
+                {
+                    _bufferPushingThread = [[NSThread alloc] initWithTarget:self selector:@selector(pushingBufferThread:) object:nil];
+                    [_bufferPushingThread setName:@"Push/Parse Buffer Thread"];
+                    [_bufferPushingThread start];
+                }
             }
-           }
+            [NSThread sleepForTimeInterval:0.01];
         }
-		else {
+        else
+        {
 #endif
             [_audioStreamLock lock];
+#ifdef SHOUTCAST_METADATA
             if (lengthNoMetaData > 0)
             {
                 if (discontinuous)
@@ -1839,37 +1848,7 @@ cleanup:
                     err = AudioFileStreamParseBytes(audioFileStream, length, bytes, 0);
                 }
             }
-            [_audioStreamLock unlock];
-            if (err)
-            {
-                [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
-                return;
-            }
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
-        }
-#endif
-		
 #else
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
-        if (![url isFileURL]) {
-            NSData * data = [[NSData alloc] initWithBytes:bytes length:length];
-            [_bufferLock lock];
-            [_buffers addObject:data];
-            [_bufferLock unlock];
-            [data release];
-            @synchronized(self) { 
-                if (nil == _bufferPushingThread) {
-                    _bufferPushingThread = [[NSThread alloc] initWithTarget:self selector:@selector(pushingBufferThread:) object:nil];
-                    [_bufferPushingThread setName:@"Push/Parse Buffer Thread"];
-                    [_bufferPushingThread start];
-                }
-            }
-            //maybe the runloop runs too fast ,that _bufferPushingThread is frequently blocked before the streaing is pre-buffered.
-            [NSThread sleepForTimeInterval:0.01];
-        }
-		else {
-#endif
-            [_audioStreamLock lock];
             if (discontinuous)
             {
                 err = AudioFileStreamParseBytes(audioFileStream, length, bytes, kAudioFileStreamParseFlag_Discontinuity);
@@ -1878,17 +1857,17 @@ cleanup:
             {
                 err = AudioFileStreamParseBytes(audioFileStream, length, bytes, 0);
             }
+#endif
             [_audioStreamLock unlock];
             if (err)
             {
                 [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
                 return;
             }
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
+#if USE_PREBUFFER
         }
 #endif
-#endif
-	}
+    }
 }
 
 #if defined (USE_PREBUFFER) && USE_PREBUFFER
