@@ -1839,6 +1839,7 @@ cleanup:
             }
             else if (metaDataInterval == 0)
             {
+#endif
                 if (discontinuous)
                 {
                     err = AudioFileStreamParseBytes(audioFileStream, length, bytes, kAudioFileStreamParseFlag_Discontinuity);
@@ -1847,15 +1848,7 @@ cleanup:
                 {
                     err = AudioFileStreamParseBytes(audioFileStream, length, bytes, 0);
                 }
-            }
-#else
-            if (discontinuous)
-            {
-                err = AudioFileStreamParseBytes(audioFileStream, length, bytes, kAudioFileStreamParseFlag_Discontinuity);
-            }
-            else
-            {
-                err = AudioFileStreamParseBytes(audioFileStream, length, bytes, 0);
+#ifdef SHOUTCAST_METADATA
             }
 #endif
             [_audioStreamLock unlock];
