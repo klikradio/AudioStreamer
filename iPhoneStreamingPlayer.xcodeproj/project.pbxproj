@@ -60,6 +60,18 @@
 		C9E673070FE8C5650033BF43 /* loadingbutton.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = loadingbutton.png; path = "Shared Resources/loadingbutton.png"; sourceTree = "<group>"; };
 		C9E673080FE8C5650033BF43 /* pausebutton.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = pausebutton.png; path = "Shared Resources/pausebutton.png"; sourceTree = "<group>"; };
 		C9E673410FE8C6510033BF43 /* iPhoneInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = iPhoneInfo.plist; sourceTree = "<group>"; };
+		CA985AC8161FF6EE00CCBB4C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
+		CA985ACB161FF6EE00CCBB4C /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		CA985ACC161FF6EE00CCBB4C /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		CA985ACD161FF6EE00CCBB4C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		CA985AD0161FF6EE00CCBB4C /* AudioStreamer-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AudioStreamer-Info.plist"; sourceTree = "<group>"; };
+		CA985AD2161FF6EE00CCBB4C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		CA985AD4161FF6EE00CCBB4C /* AudioStreamer-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AudioStreamer-Prefix.pch"; sourceTree = "<group>"; };
+		CA985AD5161FF6EE00CCBB4C /* AudioStreamer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioStreamer.h; sourceTree = "<group>"; };
+		CA985AD6161FF6EE00CCBB4C /* AudioStreamer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AudioStreamer.m; sourceTree = "<group>"; };
+		CA985AE4161FF76700CCBB4C /* AudioStreamer-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AudioStreamer-Prefix.pch"; sourceTree = "<group>"; };
+		CA985AE5161FF76700CCBB4C /* AudioStreamer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AudioStreamer.h; sourceTree = "<group>"; };
+		CA985AE7161FF76700CCBB4C /* AudioStreamer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AudioStreamer.m; sourceTree = "<group>"; };
 		FCB038FE1224369600E538F7 /* loadingbutton@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "loadingbutton@2x.png"; path = "Shared Resources/loadingbutton@2x.png"; sourceTree = "<group>"; };
 		FCB038FF1224369600E538F7 /* pausebutton@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "pausebutton@2x.png"; path = "Shared Resources/pausebutton@2x.png"; sourceTree = "<group>"; };
 		FCB039001224369600E538F7 /* playbutton@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "playbutton@2x.png"; path = "Shared Resources/playbutton@2x.png"; sourceTree = "<group>"; };
@@ -114,6 +126,8 @@
 				080E96DDFE201D6D7F000001 /* Classes */,
 				29B97315FDCFA39411CA2CEA /* Other Sources */,
 				29B97317FDCFA39411CA2CEA /* Resources */,
+				CA985ACE161FF6EE00CCBB4C /* AudioStreamer */,
+				CA985AE2161FF76700CCBB4C /* AudioStreamer */,
 				29B97323FDCFA39411CA2CEA /* Frameworks */,
 				19C28FACFE9D520D11CA2CBB /* Products */,
 			);
@@ -157,6 +171,8 @@
 				1DF5F4DF0D08C38300B7A737 /* UIKit.framework */,
 				1D30AB110D05D00D00671497 /* Foundation.framework */,
 				288765A40DF7441C002DB57D /* CoreGraphics.framework */,
+				CA985AC8161FF6EE00CCBB4C /* Cocoa.framework */,
+				CA985ACA161FF6EE00CCBB4C /* Other Frameworks */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -168,6 +184,54 @@
 				7646A325120C8F3C000ED48C /* UIDevice+Hardware.m */,
 			);
 			name = Additions;
+			sourceTree = "<group>";
+		};
+		CA985ACA161FF6EE00CCBB4C /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				CA985ACB161FF6EE00CCBB4C /* AppKit.framework */,
+				CA985ACC161FF6EE00CCBB4C /* CoreData.framework */,
+				CA985ACD161FF6EE00CCBB4C /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		CA985ACE161FF6EE00CCBB4C /* AudioStreamer */ = {
+			isa = PBXGroup;
+			children = (
+				CA985AD5161FF6EE00CCBB4C /* AudioStreamer.h */,
+				CA985AD6161FF6EE00CCBB4C /* AudioStreamer.m */,
+				CA985ACF161FF6EE00CCBB4C /* Supporting Files */,
+			);
+			path = AudioStreamer;
+			sourceTree = "<group>";
+		};
+		CA985ACF161FF6EE00CCBB4C /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				CA985AD0161FF6EE00CCBB4C /* AudioStreamer-Info.plist */,
+				CA985AD1161FF6EE00CCBB4C /* InfoPlist.strings */,
+				CA985AD4161FF6EE00CCBB4C /* AudioStreamer-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		CA985AE2161FF76700CCBB4C /* AudioStreamer */ = {
+			isa = PBXGroup;
+			children = (
+				CA985AE5161FF76700CCBB4C /* AudioStreamer.h */,
+				CA985AE7161FF76700CCBB4C /* AudioStreamer.m */,
+				CA985AE3161FF76700CCBB4C /* Supporting Files */,
+			);
+			path = AudioStreamer;
+			sourceTree = "<group>";
+		};
+		CA985AE3161FF76700CCBB4C /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				CA985AE4161FF76700CCBB4C /* AudioStreamer-Prefix.pch */,
+			);
+			name = "Supporting Files";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -197,7 +261,11 @@
 			isa = PBXProject;
 			buildConfigurationList = C01FCF4E08A954540054247B /* Build configuration list for PBXProject "iPhoneStreamingPlayer" */;
 			compatibilityVersion = "Xcode 3.1";
+			developmentRegion = English;
 			hasScannedForEncodings = 1;
+			knownRegions = (
+				en,
+			);
 			mainGroup = 29B97314FDCFA39411CA2CEA /* CustomTemplate */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -242,6 +310,17 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		CA985AD1161FF6EE00CCBB4C /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				CA985AD2161FF6EE00CCBB4C /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		1D6058940D05DD3E006BFB54 /* Debug */ = {

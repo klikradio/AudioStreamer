@@ -1866,83 +1866,25 @@ cleanup:
 #if defined (USE_PREBUFFER) && USE_PREBUFFER
 - (void)pushingBufferThread:(id)object
 {
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
-    //@autoreleasepool
+    //NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    @autoreleasepool
     {
         NSData * data = nil;
 
         while (![self runLoopShouldExit]) {
-            NSAutoreleasePool * inpool = [[NSAutoreleasePool alloc] init];
-//            @autoreleasepool
+//            NSAutoreleasePool * inpool = [[NSAutoreleasePool alloc] init];
+            @autoreleasepool
             {
                 data = nil;
                 [_bufferLock lock];
-                if ([_buffers count]) {
+                if ([_buffers count])
+                {
                     data = [[[_buffers objectAtIndex:0] retain] autorelease];
                     [_buffers removeObjectAtIndex:0];
                 }
                 [_bufferLock unlock];
-                if (data) {
-                    /*
-                     if (discontinuous)
-                     {
-                     /*
-                     * SHOUTcast can send the interval byte by itself. In that case lengthNoMetaData is 0, but
-                     * the interval byte should not be sent to the audio queue. The check for a metaDataInterval == 0
-                     * will make sure that we don't ever send in the interval byte on a stream with metadata
-                    
-                    if (lengthNoMetaData > 0)
-                    {
-                        NSLog(@"Parsing no meta bytes (Discontinuous).");
-                        [_audioStreamLock lock];
-                        err = AudioFileStreamParseBytes(audioFileStream, lengthNoMetaData, bytesNoMetaData, kAudioFileStreamParseFlag_Discontinuity);
-                        [_audioStreamLock unlock];
-                        if (err)
-                        {
-                            [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
-                            return;
-                        }
-                    }
-                    else if (metaDataInterval == 0)	// make sure this isn't a stream with metadata
-                    {
-                        NSLog(@"Parsing normal bytes (Discontinuous).");
-                        [_audioStreamLock lock];
-                        err = AudioFileStreamParseBytes(audioFileStream, length, bytes, kAudioFileStreamParseFlag_Discontinuity);
-                        [_audioStreamLock unlock];
-                        if (err)
-                        {
-                            [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
-                            return;
-                        }
-                    }
-                }
-                else
+                if (data)
                 {
-                    if (lengthNoMetaData > 0)
-                    {
-                        NSLog(@"Parsing no meta bytes.");
-                        [_audioStreamLock lock];
-                        err = AudioFileStreamParseBytes(audioFileStream, lengthNoMetaData, bytesNoMetaData, 0);
-                        [_audioStreamLock unlock];
-                        if (err)
-                        {
-                            [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
-                            return;
-                        }
-                    }
-                    else if (metaDataInterval == 0)	// make sure this isn't a stream with metadata
-                    {
-                        NSLog(@"Parsing normal bytes.");
-                        [_audioStreamLock lock];
-                        err = AudioFileStreamParseBytes(audioFileStream, length, bytes, 0);
-                        [_audioStreamLock unlock];
-                        if (err)
-                        {
-                            [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
-                            return;
-                        }
-                    }
-                } // end discontinuous*/
                     if (discontinuous)
                     {
                         [_audioStreamLock lock];
@@ -2038,7 +1980,7 @@ cleanup:
 //                    [NSThread sleepForTimeInterval:0.01];
                 }
             }
-            [inpool drain];
+//            [inpool drain];
             
             [NSThread sleepForTimeInterval:0.01];
         }
@@ -2048,7 +1990,7 @@ cleanup:
         }
     }
     
-    [pool drain];
+//    [pool drain];
 }
 #endif
 //

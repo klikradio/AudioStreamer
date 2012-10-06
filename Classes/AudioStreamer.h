@@ -28,8 +28,6 @@
 
 
 #define USE_PREBUFFER 1
-
-
 #define LOG_QUEUED_BUFFERS 0
 
 #define kNumAQBufs 24			// Number of audio queue buffers we allocate.
@@ -54,7 +52,7 @@
 // but the largest packets. A buffer size error
 // will occur if this number is too small.
 
-#define kAQMaxPacketDescs 5120	// Number of packet descriptions in our array
+#define kAQMaxPacketDescs 512	// Number of packet descriptions in our array
 
 typedef enum
 {
