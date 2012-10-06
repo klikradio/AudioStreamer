@@ -266,7 +266,7 @@ void ASReadStreamCallBack
 		metaDataString = [[NSMutableString alloc] initWithString:@""];
 #endif
 #if defined (USE_PREBUFFER) && USE_PREBUFFER
-        _buffers = [[NSMutableArray alloc] initWithCapacity:2048/kAQDefaultBufSize];
+        _buffers = [[NSMutableArray alloc] initWithCapacity:512];
         _bufferLock = [[NSLock alloc] init];
         _audioStreamLock = [[NSLock alloc] init];
         self.allBufferPushed = NO;
