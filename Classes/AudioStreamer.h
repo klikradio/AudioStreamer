@@ -149,6 +149,7 @@ extern NSString * const ASUpdateMetadataNotification;
 	pthread_cond_t queueBufferReadyCondition;	// a condition varable for handling the inuse flags
     
 	CFReadStreamRef stream;
+    
 	NSNotificationCenter *notificationCenter;
 	
 	UInt32 bitRate;				// Bits per second in the file
@@ -183,15 +184,18 @@ extern NSString * const ASUpdateMetadataNotification;
 #endif
 	BOOL vbr; // indicates VBR (or not) stream
     
-
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
     NSLock * _bufferLock;
     NSLock * _audioStreamLock;
     NSMutableArray * _buffers;
     NSThread * _bufferPushingThread;
     BOOL _allBufferPushed;
     BOOL _finishedBuffer;
-#endif
+    
+    CFReadStreamRef backupStream;
+    NSMutableArray *backupBuffer;
+    NSLock *backupBufferLock;
+    BOOL useBackupBuffer;
+    
 }
 
 @property AudioStreamerErrorCode errorCode;
@@ -207,7 +211,6 @@ extern NSString * const ASUpdateMetadataNotification;
 @property (readonly) BOOL vbr;
 
 - (id)initWithURL:(NSURL *)aURL;
-//- (id)initWithURL:(NSURL *)aURL encryption:(EncryptionMethod)method crc32:(uLong)crc32;
 - (void)start;
 - (void)stop;
 - (void)pause;
@@ -221,7 +224,6 @@ extern NSString * const ASUpdateMetadataNotification;
 // level metering
 - (float)peakPowerForChannel:(NSUInteger)channelNumber;
 - (float)averagePowerForChannel:(NSUInteger)channelNumber;
-
 
 - (void)setVolume:(float)vol;
 @end

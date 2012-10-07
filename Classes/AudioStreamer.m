@@ -94,11 +94,11 @@ NSString * const AS_AUDIO_MEMORY_ALLOC_FAILED_STRING = @"Alloc memory failed";
 
 void MyAudioQueueOutputCallback(void* inClientData, AudioQueueRef inAQ, AudioQueueBufferRef inBuffer);
 void MyAudioQueueIsRunningCallback(void *inUserData, AudioQueueRef inAQ, AudioQueuePropertyID inID);
-void MyPropertyListenerProc(	void *							inClientData,
+void MyPropertyListenerProc(void *							inClientData,
                             AudioFileStreamID				inAudioFileStream,
                             AudioFileStreamPropertyID		inPropertyID,
                             UInt32 *						ioFlags);
-void MyPacketsProc(				void *							inClientData,
+void MyPacketsProc(void *							inClientData,
                    UInt32							inNumberBytes,
                    UInt32							inNumberPackets,
                    const void *					inInputData,
@@ -123,7 +123,7 @@ void PropListener(void *inClientData, AudioSessionPropertyID inID, UInt32 inData
 // This function is adapted from Apple's example in AudioFileStreamExample with
 // kAudioQueueProperty_IsRunning listening added.
 //
-void MyPropertyListenerProc(	void *							inClientData,
+void MyPropertyListenerProc(void *							inClientData,
                             AudioFileStreamID				inAudioFileStream,
                             AudioFileStreamPropertyID		inPropertyID,
                             UInt32 *						ioFlags)
@@ -147,7 +147,7 @@ void MyPropertyListenerProc(	void *							inClientData,
 // This function is adapted from Apple's example in AudioFileStreamExample with
 // CBR functionality added.
 //
-void MyPacketsProc(				void *							inClientData,
+void MyPacketsProc(void *							inClientData,
                    UInt32							inNumberBytes,
                    UInt32							inNumberPackets,
                    const void *					inInputData,
@@ -271,6 +271,9 @@ void ASReadStreamCallBack
         _audioStreamLock = [[NSLock alloc] init];
         self.allBufferPushed = NO;
         self.finishedBuffer = NO;
+        
+        backupBuffer = [[NSMutableArray alloc] initWithCapacity:512];
+        backupBufferLock = [[NSLock alloc] init];
 #endif
 	}
 	return self;
@@ -717,7 +720,21 @@ void ASReadStreamCallBack
 	{
 		NSAssert([[NSThread currentThread] isEqual:internalThread],
                  @"File stream download must be started on the internalThread");
-		NSAssert(stream == nil, @"Download stream already initialized");
+        if (useBackupBuffer)
+        {
+            if (backupStream != nil)
+            {
+                NSLog(@"Backup stream is already set");
+                return NO;
+            }
+        }
+        else
+        {
+            NSAssert(stream == nil, @"Download stream already initialized");
+        }
+		
+        CFReadStreamRef *curStream;
+        
         if ([url isFileURL]) {
             stream = CFReadStreamCreateWithFile(NULL, (CFURLRef)url);
         }
@@ -737,21 +754,31 @@ void ASReadStreamCallBack
             if (fileLength > 0 && seekByteOffset > 0)
             {
                 CFHTTPMessageSetHeaderFieldValue(message, CFSTR("Range"),
-                                                 (CFStringRef)[NSString stringWithFormat:@"bytes=%ld-%ld", seekByteOffset, fileLength - 1]);
+                                                 (CFStringRef)[NSString stringWithFormat:@"bytes=%d-%d", seekByteOffset, fileLength - 1]);
                 discontinuous = vbr;
             }
             
             //
             // Create the read stream that will receive data from the HTTP request
             //
-            stream = CFReadStreamCreateForHTTPRequest(NULL, message);
+            
+            if (useBackupBuffer)
+            {
+                backupStream = CFReadStreamCreateForHTTPRequest(NULL, message);
+                curStream = &backupStream;
+            }
+            else
+            {
+                stream = CFReadStreamCreateForHTTPRequest(NULL, message);
+                curStream = &stream;
+            }
             CFRelease(message);
             
             //
             // Enable stream redirection
             //
             if (CFReadStreamSetProperty(
-                                        stream,
+                                        *curStream,
                                         kCFStreamPropertyHTTPShouldAutoredirect,
                                         kCFBooleanTrue) == false)
             {
@@ -775,7 +802,7 @@ void ASReadStreamCallBack
                  [NSNull null], kCFStreamSSLPeerName,
                  nil];
                 
-                CFReadStreamSetProperty(stream, kCFStreamPropertySSLSettings, sslSettings);
+                CFReadStreamSetProperty(*curStream, kCFStreamPropertySSLSettings, sslSettings);
             }
         }
 		
@@ -787,10 +814,10 @@ void ASReadStreamCallBack
 		//
 		// Open the stream
 		//
-		if (!CFReadStreamOpen(stream))
+		if (!CFReadStreamOpen(*curStream))
 		{
-			CFRelease(stream);
-            stream = NULL;
+			CFRelease(*curStream);
+            *curStream = NULL;
 			[self presentAlertWithTitle:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
 								message:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)];
 			return NO;
@@ -801,11 +828,11 @@ void ASReadStreamCallBack
 		//
 		CFStreamClientContext context = {0, self, NULL, NULL, NULL};
 		CFReadStreamSetClient(
-                              stream,
+                              *curStream,
                               kCFStreamEventHasBytesAvailable | kCFStreamEventErrorOccurred | kCFStreamEventEndEncountered,
                               ASReadStreamCallBack,
                               &context);
-		CFReadStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
+		CFReadStreamScheduleWithRunLoop(*curStream, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
 	}
 	
 	return YES;
@@ -913,6 +940,7 @@ void ASReadStreamCallBack
 		//
 		if (buffersUsed == 0 && self.state == AS_PLAYING)
 		{
+            NSLog(@"COMMENCE PLAYING FROM SECONDARY BUFFER...");
 			err = AudioQueuePause(audioQueue);
 			if (err)
 			{
@@ -943,24 +971,26 @@ cleanup:
 			stream = nil;
 		}
     }
-		//
-		// Close the audio file strea,
-		//
+
+    //
+    // Close the audio file strea,
+    //
 
 //MUST divde @synchronized(self) {} into two blocks , 
 //or it will run in dead lock
 //use a audioStreamLock is to prevent audio stream is closed when pushDataThread is pushing data
-        [_audioStreamLock lock];
-		if (audioFileStream)
-		{
-			err = AudioFileStreamClose(audioFileStream);
-			audioFileStream = nil;
-			if (err)
-			{
-				[self failWithErrorCode:AS_FILE_STREAM_CLOSE_FAILED];
-			}
-		}
-        [_audioStreamLock unlock];
+    [_audioStreamLock lock];
+    if (audioFileStream)
+    {
+        err = AudioFileStreamClose(audioFileStream);
+        audioFileStream = nil;
+        if (err)
+        {
+            [self failWithErrorCode:AS_FILE_STREAM_CLOSE_FAILED];
+        }
+    }
+    [_audioStreamLock unlock];
+
     @synchronized(self)
     {
 		//
@@ -1392,7 +1422,7 @@ cleanup:
 - (void)handleReadFromStream:(CFReadStreamRef)aStream
                    eventType:(CFStreamEventType)eventType
 {
-	if (aStream != stream)
+	if (aStream != stream && aStream != backupStream)
 	{
 		//
 		// Ignore messages from old streams
@@ -1402,9 +1432,18 @@ cleanup:
 	
 	if (eventType == kCFStreamEventErrorOccurred)
 	{
-        NSLog(@"Instance A");
-        NSLog(@"Bytes filled?: %zu", bytesFilled);
-		[self failWithErrorCode:AS_AUDIO_DATA_NOT_FOUND];
+        /** This event is triggered whenever the user switches from Wi-fi to 3G **/
+        /** The trigger from 3G to Wi-fi never happens...we have to rely on a Reachability
+            notification to trigger that transition **/
+        if (!useBackupBuffer)
+        {
+            useBackupBuffer = YES;
+            [url release];
+            url = nil;
+            url = [[NSURL alloc] initWithString:@"http://majestic.wavestreamer.com:5555/"];
+            [self openReadStream];
+        }
+        // Start buffering from the backup stream...
 	}
 	else if (eventType == kCFStreamEventEndEncountered)
 	{
@@ -1489,7 +1528,8 @@ cleanup:
             fileLength = [attr fileSize];
             RELEASE_SAFELY(mgr)
         }
-		else {
+		else
+        {
             if (!httpHeaders)
             {
                 CFTypeRef message =
@@ -1572,70 +1612,34 @@ cleanup:
 				CFHTTPMessageRef myResponse = (CFHTTPMessageRef)CFReadStreamCopyProperty(stream, kCFStreamPropertyHTTPResponseHeader);
 				UInt32 statusCode = CFHTTPMessageGetResponseStatusCode(myResponse);
 				
-				//CFStringRef myStatusLine = CFHTTPMessageCopyResponseStatusLine(myResponse);
-				
 				if (statusCode == 200)		// "OK" (this is true even for ICY)
 				{
 					// check if this is a ICY 200 OK response
 					NSString *icyCheck = [[[NSString alloc] initWithBytes:bytes length:10 encoding:NSUTF8StringEncoding] autorelease];
-					//NSLog(@"stream bytes %@", [NSString stringWithCString:bytes length:length]); // dataWithBytes:bytes length:1024]);
 					if (icyCheck != nil && [icyCheck caseInsensitiveCompare:@"ICY 200 OK"] == NSOrderedSame)
 					{
 						foundIcyStart = YES;
-						//NSLog(@"ICY 200 OK");
 					}
 					else
 					{
 						// is Live365?
 						// get all the headers
 						NSDictionary *reqHeaders = [(NSDictionary *)CFHTTPMessageCopyAllHeaderFields(myResponse) autorelease];
-						//NSLog(@"reqHeaders: %@", reqHeaders);
 						NSString *serverHeader = [reqHeaders valueForKey:@"Server"];
 						if (serverHeader != nil && NSEqualRanges([serverHeader rangeOfString:@"Nanocaster"], NSMakeRange(0, 10))) {
 							NSLog(@"Wrong stream type - can not continue to parse");
 							
 						} else {
 							// Not an ICY response
-							/*NSString *metaInt;
-                             metaInt = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Icy-Metaint"));
-                             metaDataInterval = [metaInt intValue];
-                             [metaInt release];
-                             if (metaInt)
-                             {
-                             parsedHeaders = YES;
-                             }*/
 							NSString *metaInt;
 							NSString *contentType;
 							NSString *icyBr;
 							metaInt = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Icy-Metaint"));
 							contentType = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("Content-Type"));
 							icyBr = (NSString *) CFHTTPMessageCopyHeaderFieldValue(myResponse, CFSTR("icy-br"));
-							/*if (contentType)
-                             {
-                             // only if we haven't already set a content-type
-                             if (!myData.streamContentType)
-                             {
-                             NSLog(@"Stream Content-Type: %@", contentType);
-                             myData.streamContentType = contentType;
-                             // if this is not an mp3 stream we need to restart the audio queue
-                             if ([myData.streamContentType caseInsensitiveCompare:@"audio/mpeg"] != NSOrderedSame)
-                             {
-                             [myData restartAudioQueue];
-                             }
-                             }
-                             }*/
-							/*
-                             if (bitRate == 0 && icyBr)
-                             {
-                             bitRate = [icyBr intValue];
-                             NSLog(@"Stream Bitrate: %@", icyBr);
-                             [myData updateBitrate:[icyBr intValue]];
-                             }
-                             */
 							metaDataInterval = [metaInt intValue];
 							if (metaInt)
 							{
-								//NSLog(@"MetaInt: %@", metaInt);
 								parsedHeaders = YES;
 							}
 						}
@@ -1649,7 +1653,7 @@ cleanup:
 				{
 					// Invalid
 				}
-			} // if (metaDataInterval == 0)
+			}
 			
 			if (foundIcyStart && !foundIcyEnd)
 			{
@@ -1689,30 +1693,6 @@ cleanup:
 								//NSLog(@"ICY MetaInt: %d", metaDataInterval);
 							}
 						}
-                        /*						if ([[lineItems objectAtIndex:0] caseInsensitiveCompare:@"icy-br"] == NSOrderedSame)
-                         {
-                         uint32_t icybr = [[lineItems objectAtIndex:1] intValue];
-                         if (bitRate == 0) {
-                         bitRate = icybr;
-                         NSLog(@"ICY BR: %d", icybr);
-                         [myData updateBitrate:icybr];
-                         }
-                         }
-                         if ([[lineItems objectAtIndex:0] caseInsensitiveCompare:@"Content-Type"] == NSOrderedSame)
-                         {
-                         NSLog(@"ICY Stream Content-Type: %@", [lineItems objectAtIndex:1]);
-                         // only if we haven't already set the content type
-                         if (!myData.streamContentType)
-                         {
-                         myData.streamContentType = [lineItems objectAtIndex:1];
-                         // if this is not an mp3 stream we need to restart the audio queue
-                         if ([myData.streamContentType caseInsensitiveCompare:@"audio/mpeg"] != NSOrderedSame)
-                         {
-                         [myData restartAudioQueue];
-                         }
-                         }
-                         }
-                         */
 						// this is the end of a line, the new line starts in 2
 						lineStart = streamStart+2; // (c3)
 						
@@ -1806,9 +1786,19 @@ cleanup:
 #ifdef SHOUTCAST_METADATA
             }
 #endif
-            [_bufferLock lock];
-            [_buffers addObject:data];
-            [_bufferLock unlock];
+            if (useBackupBuffer)
+            {
+                [backupBufferLock lock];
+                [backupBuffer addObject:data];
+                [backupBufferLock unlock];
+            }
+            else
+            {
+                [_bufferLock lock];
+                [_buffers addObject:data];
+                [_bufferLock unlock];
+            }
+            
             [data release];
             @synchronized(self)
             {
@@ -1866,13 +1856,11 @@ cleanup:
 #if defined (USE_PREBUFFER) && USE_PREBUFFER
 - (void)pushingBufferThread:(id)object
 {
-    //NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     @autoreleasepool
     {
         NSData * data = nil;
 
         while (![self runLoopShouldExit]) {
-//            NSAutoreleasePool * inpool = [[NSAutoreleasePool alloc] init];
             @autoreleasepool
             {
                 data = nil;
@@ -1883,6 +1871,18 @@ cleanup:
                     [_buffers removeObjectAtIndex:0];
                 }
                 [_bufferLock unlock];
+                
+                if (!data)
+                {
+                    [backupBufferLock lock];
+                    if ([backupBuffer count])
+                    {
+                        data = [[[backupBuffer objectAtIndex:0] retain] autorelease];
+                        [backupBuffer removeObjectAtIndex:0];
+                    }
+                    [backupBufferLock unlock];
+                }
+                
                 if (data)
                 {
                     if (discontinuous)
@@ -2543,6 +2543,8 @@ cleanup:
 #if LOG_QUEUED_BUFFERS
 	NSLog(@"Queued buffers: %ld", buffersUsed);
 #endif
+    NSLog(@"Queued network buffers: %d", [_buffers count]);
+    NSLog(@"Queued backup buffers: %d", [backupBuffer count]);
 	
 	pthread_cond_signal(&queueBufferReadyCondition);
 	pthread_mutex_unlock(&queueBuffersMutex);
