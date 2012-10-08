@@ -278,11 +278,17 @@
 		
 		[self createStreamer];
 		[self setButtonImage:[UIImage imageNamed:@"loadingbutton.png"]];
-		[streamer start];
+		[streamer prebuffer];
 	}
 	else
 	{
+        if (streamer.state == AS_WAITING_FOR_DATA)
+        {
+            [streamer start];
+        }
+        else{
 		[streamer stop];
+        }
 	}
 }
 

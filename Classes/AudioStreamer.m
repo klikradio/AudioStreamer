@@ -63,11 +63,10 @@ NSString * const AS_AUDIO_MEMORY_ALLOC_FAILED_STRING = @"Alloc memory failed";
 
 @interface AudioStreamer ()
 @property (readwrite) AudioStreamerState state;
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
 @property (readwrite) BOOL allBufferPushed;
 @property (readwrite) BOOL finishedBuffer;
 - (void)pushingBufferThread:(id)object;
-#endif
+
 - (void)handlePropertyChangeForFileStream:(AudioFileStreamID)inAudioFileStream
                      fileStreamPropertyID:(AudioFileStreamPropertyID)inPropertyID
                                   ioFlags:(UInt32 *)ioFlags;
@@ -238,10 +237,9 @@ void ASReadStreamCallBack
 @synthesize httpHeaders;
 @synthesize numberOfChannels;
 @synthesize vbr;
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
 @synthesize allBufferPushed = _allBufferPushed;
 @synthesize finishedBuffer = _finishedBuffer;
-#endif
+
 - (void)setVolume:(float)vol {
     @synchronized(self) {
         if (audioQueue) {
@@ -265,13 +263,12 @@ void ASReadStreamCallBack
 #ifdef SHOUTCAST_METADATA
 		metaDataString = [[NSMutableString alloc] initWithString:@""];
 #endif
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
         _buffers = [[NSMutableArray alloc] initWithCapacity:512];
         _bufferLock = [[NSLock alloc] init];
         _audioStreamLock = [[NSLock alloc] init];
         self.allBufferPushed = NO;
         self.finishedBuffer = NO;
-#endif
+        prebufferOnly = NO;
 	}
 	return self;
 }
@@ -288,11 +285,9 @@ void ASReadStreamCallBack
 #ifdef SHOUTCAST_METADATA
 	[metaDataString release];
 #endif
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
     RELEASE_SAFELY(_buffers);
     RELEASE_SAFELY(_bufferLock);
     RELEASE_SAFELY(_audioStreamLock);
-#endif
 	[super dealloc];
 }
 
@@ -737,7 +732,7 @@ void ASReadStreamCallBack
             if (fileLength > 0 && seekByteOffset > 0)
             {
                 CFHTTPMessageSetHeaderFieldValue(message, CFSTR("Range"),
-                                                 (CFStringRef)[NSString stringWithFormat:@"bytes=%ld-%ld", seekByteOffset, fileLength - 1]);
+                                                 (CFStringRef)[NSString stringWithFormat:@"bytes=%d-%d", seekByteOffset, fileLength - 1]);
                 discontinuous = vbr;
             }
             
@@ -923,11 +918,7 @@ void ASReadStreamCallBack
 		}
         [pool drain];
         [NSThread sleepForTimeInterval:0.01];
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
 	} while ((self.allBufferPushed || isRunning || [self isFinishing]) && ![self runLoopShouldExit]);
-#else
-    } while (isRunning && ![self runLoopShouldExit]);
-#endif
 	
 cleanup:
     
@@ -1027,7 +1018,17 @@ cleanup:
 			[internalThread setName:@"InternalThread"];
 			[internalThread start];
 		}
+        else if (state == AS_WAITING_FOR_DATA)
+        {
+            prebufferOnly = NO;
+        }
 	}
+}
+
+- (void)prebuffer
+{
+    prebufferOnly = YES;
+    [self start];
 }
 
 
@@ -1408,9 +1409,7 @@ cleanup:
 	}
 	else if (eventType == kCFStreamEventEndEncountered)
 	{
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
         self.finishedBuffer = YES;
-#endif
         if ([url isFileURL]) {
             @synchronized(self)
             {
@@ -1790,7 +1789,6 @@ cleanup:
 #endif
 		}
         
-#ifdef USE_PREBUFFER
         if (![url isFileURL])
         {
             NSData *data;
@@ -1810,20 +1808,22 @@ cleanup:
             [_buffers addObject:data];
             [_bufferLock unlock];
             [data release];
-            @synchronized(self)
+            if (!prebufferOnly)
             {
-                if (nil == _bufferPushingThread)
+                @synchronized(self)
                 {
-                    _bufferPushingThread = [[NSThread alloc] initWithTarget:self selector:@selector(pushingBufferThread:) object:nil];
-                    [_bufferPushingThread setName:@"Push/Parse Buffer Thread"];
-                    [_bufferPushingThread start];
+                    if (nil == _bufferPushingThread)
+                    {
+                        _bufferPushingThread = [[NSThread alloc] initWithTarget:self selector:@selector(pushingBufferThread:) object:nil];
+                        [_bufferPushingThread setName:@"Push/Parse Buffer Thread"];
+                        [_bufferPushingThread start];
+                    }
                 }
             }
             [NSThread sleepForTimeInterval:0.01];
         }
         else
         {
-#endif
             [_audioStreamLock lock];
 #ifdef SHOUTCAST_METADATA
             if (lengthNoMetaData > 0)
@@ -1857,13 +1857,10 @@ cleanup:
                 [self failWithErrorCode:AS_FILE_STREAM_PARSE_BYTES_FAILED];
                 return;
             }
-#if USE_PREBUFFER
         }
-#endif
     }
 }
 
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
 - (void)pushingBufferThread:(id)object
 {
     //NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
@@ -1992,7 +1989,7 @@ cleanup:
     
 //    [pool drain];
 }
-#endif
+
 //
 // enqueueBuffer
 //
@@ -2541,7 +2538,8 @@ cleanup:
     //  Enable this logging to measure how many buffers are queued at any time.
     //
 #if LOG_QUEUED_BUFFERS
-	NSLog(@"Queued buffers: %ld", buffersUsed);
+	//NSLog(@"Queued buffers: %d", buffersUsed);
+    NSLog(@"Network Queue: %d", [_buffers count]);
 #endif
 	
 	pthread_cond_signal(&queueBufferReadyCondition);

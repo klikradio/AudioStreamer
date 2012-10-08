@@ -28,7 +28,7 @@
 
 
 #define USE_PREBUFFER 1
-#define LOG_QUEUED_BUFFERS 0
+#define LOG_QUEUED_BUFFERS 1
 
 #define kNumAQBufs 24			// Number of audio queue buffers we allocate.
 // Needs to be big enough to keep audio pipeline
@@ -57,15 +57,15 @@
 typedef enum
 {
 	AS_INITIALIZED = 0,
-	AS_STARTING_FILE_THREAD,
-	AS_WAITING_FOR_DATA,
-	AS_FLUSHING_EOF,
-	AS_WAITING_FOR_QUEUE_TO_START,
-	AS_PLAYING,
-	AS_BUFFERING,
-	AS_STOPPING,
-	AS_STOPPED,
-	AS_PAUSED
+	AS_STARTING_FILE_THREAD = 1,
+	AS_WAITING_FOR_DATA = 2,
+	AS_FLUSHING_EOF = 3,
+	AS_WAITING_FOR_QUEUE_TO_START = 4,
+	AS_PLAYING = 5,
+	AS_BUFFERING = 6,
+	AS_STOPPING = 7,
+	AS_STOPPED = 8,
+	AS_PAUSED = 9
 } AudioStreamerState;
 
 typedef enum
@@ -183,15 +183,13 @@ extern NSString * const ASUpdateMetadataNotification;
 #endif
 	BOOL vbr; // indicates VBR (or not) stream
     
-
-#if defined (USE_PREBUFFER) && USE_PREBUFFER
     NSLock * _bufferLock;
     NSLock * _audioStreamLock;
     NSMutableArray * _buffers;
     NSThread * _bufferPushingThread;
     BOOL _allBufferPushed;
     BOOL _finishedBuffer;
-#endif
+    BOOL prebufferOnly;
 }
 
 @property AudioStreamerErrorCode errorCode;
@@ -207,7 +205,7 @@ extern NSString * const ASUpdateMetadataNotification;
 @property (readonly) BOOL vbr;
 
 - (id)initWithURL:(NSURL *)aURL;
-//- (id)initWithURL:(NSURL *)aURL encryption:(EncryptionMethod)method crc32:(uLong)crc32;
+- (void)prebuffer;
 - (void)start;
 - (void)stop;
 - (void)pause;
