@@ -12,6 +12,7 @@
 @interface ReliableStreamer : NSObject {
     AudioStreamer *WifiStream;
     AudioStreamer *CellStream;
+    AudioStreamer *currentStream;
 }
 
 - (id)initWithURLs:(NSURL *)highURL lowURL:(NSURL *)lowURL;
@@ -19,5 +20,12 @@
 - (void)playCellStream;
 - (void)start;
 - (void)stop;
+- (void)pause;
+
+- (BOOL)isWaiting;
+- (BOOL)isPlaying;
+- (BOOL)isPaused;
+- (BOOL)isIdle;
+- (void)setMeteringEnabled:(BOOL)yesno;
 
 @end

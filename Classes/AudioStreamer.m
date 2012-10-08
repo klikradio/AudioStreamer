@@ -915,7 +915,7 @@ void ASReadStreamCallBack
 		//
 		if (buffersUsed == 0 && self.state == AS_PLAYING)
 		{
-            NSLog(@"COMMENCE PLAYING FROM SECONDARY BUFFER...");
+            NSLog(@"COMMENCE PLAYING FROM SECONDARY BUFFER (if the Reachability has been changed)...");
             [reliableStream playCellStream];
             
 			err = AudioQueuePause(audioQueue);

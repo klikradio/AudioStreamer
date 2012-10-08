@@ -30,16 +30,48 @@
 {
     NSLog(@"Play cell stream sending");
     [CellStream start];
+    currentStream = CellStream;
 }
 
 - (void)start
 {
     [WifiStream start];
+    currentStream = WifiStream;
 }
 
 - (void)stop
 {
     [WifiStream start];
     [CellStream stop];
+}
+
+- (void)pause
+{
+    [currentStream pause];
+}
+
+- (BOOL)isWaiting
+{
+    return [currentStream isWaiting];
+}
+
+- (BOOL)isPlaying
+{
+    return [currentStream isPlaying];
+}
+
+- (BOOL)isPaused
+{
+    return [currentStream isPaused];
+}
+
+- (BOOL)isIdle
+{
+    return [currentStream isIdle];
+}
+
+- (void)setMeteringEnabled:(BOOL)yesno
+{
+    [currentStream setMeteringEnabled:yesno];
 }
 @end

@@ -29,7 +29,7 @@
 @class ReliableStreamer;
 
 #define USE_PREBUFFER 1
-#define LOG_QUEUED_BUFFERS 0
+#define LOG_QUEUED_BUFFERS 1
 
 #define kNumAQBufs 24			// Number of audio queue buffers we allocate.
 // Needs to be big enough to keep audio pipeline
