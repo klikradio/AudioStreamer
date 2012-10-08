@@ -26,9 +26,10 @@
 #include <pthread.h>
 #include <AudioToolbox/AudioToolbox.h>
 
+@class ReliableStreamer;
 
 #define USE_PREBUFFER 1
-#define LOG_QUEUED_BUFFERS 1
+#define LOG_QUEUED_BUFFERS 0
 
 #define kNumAQBufs 24			// Number of audio queue buffers we allocate.
 // Needs to be big enough to keep audio pipeline
@@ -190,12 +191,9 @@ extern NSString * const ASUpdateMetadataNotification;
     NSThread * _bufferPushingThread;
     BOOL _allBufferPushed;
     BOOL _finishedBuffer;
+    BOOL prebufferOnly;
     
-    CFReadStreamRef backupStream;
-    NSMutableArray *backupBuffer;
-    NSLock *backupBufferLock;
-    BOOL useBackupBuffer;
-    
+    ReliableStreamer *reliableStream;
 }
 
 @property AudioStreamerErrorCode errorCode;
@@ -211,6 +209,8 @@ extern NSString * const ASUpdateMetadataNotification;
 @property (readonly) BOOL vbr;
 
 - (id)initWithURL:(NSURL *)aURL;
+- (id)initWithURLAndReliable:(NSURL *)aURL reliable:(ReliableStreamer *)reliable;
+- (void)prebuffer;
 - (void)start;
 - (void)stop;
 - (void)pause;

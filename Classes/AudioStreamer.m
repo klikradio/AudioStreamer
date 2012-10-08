@@ -268,12 +268,16 @@ void ASReadStreamCallBack
         _audioStreamLock = [[NSLock alloc] init];
         self.allBufferPushed = NO;
         self.finishedBuffer = NO;
-        
-        backupBuffer = [[NSMutableArray alloc] initWithCapacity:512];
-        backupBufferLock = [[NSLock alloc] init];
-#endif
+        prebufferOnly = NO;
 	}
 	return self;
+}
+
+- (id)initWithURLAndReliable:(NSURL *)aURL reliable:(ReliableStreamer *)reliable
+{
+    self = [[super init] initWithURL:aURL];
+    reliableStream = reliable;
+    return self;
 }
 
 //
@@ -715,21 +719,7 @@ void ASReadStreamCallBack
 	{
 		NSAssert([[NSThread currentThread] isEqual:internalThread],
                  @"File stream download must be started on the internalThread");
-        if (useBackupBuffer)
-        {
-            if (backupStream != nil)
-            {
-                NSLog(@"Backup stream is already set");
-                return NO;
-            }
-        }
-        else
-        {
-            NSAssert(stream == nil, @"Download stream already initialized");
-        }
-		
-        CFReadStreamRef *curStream;
-        
+		NSAssert(stream == nil, @"Download stream already initialized");
         if ([url isFileURL]) {
             stream = CFReadStreamCreateWithFile(NULL, (CFURLRef)url);
         }
@@ -756,24 +746,14 @@ void ASReadStreamCallBack
             //
             // Create the read stream that will receive data from the HTTP request
             //
-            
-            if (useBackupBuffer)
-            {
-                backupStream = CFReadStreamCreateForHTTPRequest(NULL, message);
-                curStream = &backupStream;
-            }
-            else
-            {
-                stream = CFReadStreamCreateForHTTPRequest(NULL, message);
-                curStream = &stream;
-            }
+            stream = CFReadStreamCreateForHTTPRequest(NULL, message);
             CFRelease(message);
             
             //
             // Enable stream redirection
             //
             if (CFReadStreamSetProperty(
-                                        *curStream,
+                                        stream,
                                         kCFStreamPropertyHTTPShouldAutoredirect,
                                         kCFBooleanTrue) == false)
             {
@@ -797,7 +777,7 @@ void ASReadStreamCallBack
                  [NSNull null], kCFStreamSSLPeerName,
                  nil];
                 
-                CFReadStreamSetProperty(*curStream, kCFStreamPropertySSLSettings, sslSettings);
+                CFReadStreamSetProperty(stream, kCFStreamPropertySSLSettings, sslSettings);
             }
         }
 		
@@ -809,10 +789,10 @@ void ASReadStreamCallBack
 		//
 		// Open the stream
 		//
-		if (!CFReadStreamOpen(*curStream))
+		if (!CFReadStreamOpen(stream))
 		{
-			CFRelease(*curStream);
-            *curStream = NULL;
+			CFRelease(stream);
+            stream = NULL;
 			[self presentAlertWithTitle:NSLocalizedStringFromTable(@"File Error", @"Errors", nil)
 								message:NSLocalizedStringFromTable(@"Unable to configure network read stream.", @"Errors", nil)];
 			return NO;
@@ -823,11 +803,11 @@ void ASReadStreamCallBack
 		//
 		CFStreamClientContext context = {0, self, NULL, NULL, NULL};
 		CFReadStreamSetClient(
-                              *curStream,
+                              stream,
                               kCFStreamEventHasBytesAvailable | kCFStreamEventErrorOccurred | kCFStreamEventEndEncountered,
                               ASReadStreamCallBack,
                               &context);
-		CFReadStreamScheduleWithRunLoop(*curStream, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
+		CFReadStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopCommonModes);
 	}
 	
 	return YES;
@@ -936,6 +916,8 @@ void ASReadStreamCallBack
 		if (buffersUsed == 0 && self.state == AS_PLAYING)
 		{
             NSLog(@"COMMENCE PLAYING FROM SECONDARY BUFFER...");
+            [reliableStream playCellStream];
+            
 			err = AudioQueuePause(audioQueue);
 			if (err)
 			{
@@ -1035,8 +1017,8 @@ cleanup:
 		}
 		else if (state == AS_INITIALIZED)
 		{
-			NSAssert([[NSThread currentThread] isEqual:[NSThread mainThread]],
-                     @"Playback can only be started from the main thread.");
+			/*NSAssert([[NSThread currentThread] isEqual:[NSThread mainThread]],
+                     @"Playback can only be started from the main thread.");*/
 			notificationCenter =
             [[NSNotificationCenter defaultCenter] retain];
 			self.state = AS_STARTING_FILE_THREAD;
@@ -1050,6 +1032,7 @@ cleanup:
 		}
         else if (state == AS_WAITING_FOR_DATA)
         {
+            NSLog(@"start in the correct state received!");
             prebufferOnly = NO;
         }
 	}
@@ -1057,6 +1040,7 @@ cleanup:
 
 - (void)prebuffer
 {
+    NSLog(@"prebuffer received!");
     prebufferOnly = YES;
     [self start];
 }
@@ -1423,7 +1407,7 @@ cleanup:
 - (void)handleReadFromStream:(CFReadStreamRef)aStream
                    eventType:(CFStreamEventType)eventType
 {
-	if (aStream != stream && aStream != backupStream)
+	if (aStream != stream)
 	{
 		//
 		// Ignore messages from old streams
@@ -1433,18 +1417,8 @@ cleanup:
 	
 	if (eventType == kCFStreamEventErrorOccurred)
 	{
-        /** This event is triggered whenever the user switches from Wi-fi to 3G **/
-        /** The trigger from 3G to Wi-fi never happens...we have to rely on a Reachability
-            notification to trigger that transition **/
-        if (!useBackupBuffer)
-        {
-            useBackupBuffer = YES;
-            [url release];
-            url = nil;
-            url = [[NSURL alloc] initWithString:@"http://majestic.wavestreamer.com:5555/"];
-            [self openReadStream];
-        }
-        // Start buffering from the backup stream...
+        NSLog(@"Begin pre-buffering from other stream");
+        [reliableStream prebufferCellStream];
 	}
 	else if (eventType == kCFStreamEventEndEncountered)
 	{
@@ -1784,19 +1758,9 @@ cleanup:
 #ifdef SHOUTCAST_METADATA
             }
 #endif
-            if (useBackupBuffer)
-            {
-                [backupBufferLock lock];
-                [backupBuffer addObject:data];
-                [backupBufferLock unlock];
-            }
-            else
-            {
-                [_bufferLock lock];
-                [_buffers addObject:data];
-                [_bufferLock unlock];
-            }
-            
+            [_bufferLock lock];
+            [_buffers addObject:data];
+            [_bufferLock unlock];
             [data release];
             if (!prebufferOnly)
             {
@@ -1868,17 +1832,6 @@ cleanup:
                     [_buffers removeObjectAtIndex:0];
                 }
                 [_bufferLock unlock];
-                
-                if (!data)
-                {
-                    [backupBufferLock lock];
-                    if ([backupBuffer count])
-                    {
-                        data = [[[backupBuffer objectAtIndex:0] retain] autorelease];
-                        [backupBuffer removeObjectAtIndex:0];
-                    }
-                    [backupBufferLock unlock];
-                }
                 
                 if (data)
                 {
@@ -2541,8 +2494,6 @@ cleanup:
 	//NSLog(@"Queued buffers: %d", buffersUsed);
     NSLog(@"Network Queue: %d", [_buffers count]);
 #endif
-    NSLog(@"Queued network buffers: %d", [_buffers count]);
-    NSLog(@"Queued backup buffers: %d", [backupBuffer count]);
 	
 	pthread_cond_signal(&queueBufferReadyCondition);
 	pthread_mutex_unlock(&queueBuffersMutex);

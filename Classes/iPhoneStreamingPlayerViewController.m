@@ -14,11 +14,11 @@
 
 #import "iPhoneStreamingPlayerAppDelegate.h"
 #import "iPhoneStreamingPlayerViewController.h"
-#import "AudioStreamer.h"
 #import "LevelMeterView.h"
 #import <QuartzCore/CoreAnimation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <CFNetwork/CFNetwork.h>
+#import "ReliableStreamer.h"
 
 @implementation iPhoneStreamingPlayerViewController
 
@@ -154,7 +154,7 @@
 		autorelease];
 
 	NSURL *url = [NSURL URLWithString:escapedValue];
-	streamer = [[AudioStreamer alloc] initWithURL:url];
+	streamer = [[ReliableStreamer alloc] initWithURLs:url lowURL:[[NSURL alloc] initWithString:@"http://majestic.wavestreamer.com:5555/"]];
 	
 	[self createTimers:YES];
 
@@ -278,17 +278,11 @@
 		
 		[self createStreamer];
 		[self setButtonImage:[UIImage imageNamed:@"loadingbutton.png"]];
-		[streamer prebuffer];
+		[streamer start];
 	}
 	else
 	{
-        if (streamer.state == AS_WAITING_FOR_DATA)
-        {
-            [streamer start];
-        }
-        else{
 		[streamer stop];
-        }
 	}
 }
 
@@ -302,11 +296,11 @@
 //
 - (IBAction)sliderMoved:(UISlider *)aSlider
 {
-	if (streamer.duration)
+	/*if (streamer.duration)
 	{
 		double newSeekTime = (aSlider.value / 100.0) * streamer.duration;
 		[streamer seekToTime:newSeekTime];
-	}
+	}*/
 }
 
 //
@@ -423,7 +417,7 @@
 //
 - (void)updateProgress:(NSTimer *)updatedTimer
 {
-	if (streamer.bitRate != 0.0)
+	/*if (streamer.bitRate != 0.0)
 	{
 		double progress = streamer.progress;
 		double duration = streamer.duration;
@@ -445,7 +439,7 @@
 	else
 	{
 		positionLabel.text = @"Time Played:";
-	}
+	}*/
 }
 
 
@@ -454,11 +448,11 @@
 //
 
 - (void)updateLevelMeters:(NSTimer *)timer {
-	iPhoneStreamingPlayerAppDelegate *appDelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
+	/*iPhoneStreamingPlayerAppDelegate *appDelegate = (iPhoneStreamingPlayerAppDelegate *)[[UIApplication sharedApplication] delegate];
 	if([streamer isMeteringEnabled] && appDelegate.uiIsVisible) {
 		[levelMeterView updateMeterWithLeftValue:[streamer averagePowerForChannel:0] 
 									  rightValue:[streamer averagePowerForChannel:([streamer numberOfChannels] > 1 ? 1 : 0)]];
-	}
+	}*/
 }
 
 

@@ -20,7 +20,7 @@
 
 #import "iPhoneStreamingPlayerAppDelegate.h"
 #import "iPhoneStreamingPlayerViewController.h"
-#import "AudioStreamer.h"
+#import "ReliableStreamer.h"
 
 @implementation iPhoneStreamingPlayerAppDelegate
 
